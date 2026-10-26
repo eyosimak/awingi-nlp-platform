@@ -1,0 +1,23 @@
+# Core Framework & Web Server
+fastapi>=0.110.0,<1.0.0
+uvicorn[standard]>=0.28.0,<1.0.0
+jinja2>=3.1.3,<4.0.0
+python-multipart>=0.0.9
+
+# Data Validation & ORM
+pydantic>=2.6.0,<3.0.0
+pydantic-settings>=2.2.0,<3.0.0
+sqlalchemy>=2.0.28,<3.0.0
+
+# Document Ingestion (Computer 2 Pipeline)
+pymupdf>=1.23.0
+python-docx>=1.1.0
+
+# Authentication & Security
+passlib[bcrypt]>=1.7.4
+python-jose[cryptography]>=3.3.0
+
+# Testing & Client
+pytest>=8.0.0
+pytest-asyncio>=0.23.0
+httpx>=0.27.0

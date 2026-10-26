@@ -1,0 +1,75 @@
+# ==========================================
+# Byte-compiled / optimized / DLL files
+# ==========================================
+__pycache__/
+*.py[cod]
+*$py.class
+
+# ==========================================
+# Virtual Environments
+# ==========================================
+venv/
+.venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# ==========================================
+# Environment Variables & Secrets
+# ==========================================
+.env
+.env.local
+.env.*.local
+*.pem
+*.key
+
+# ==========================================
+# Database & SQLite Storage
+# ==========================================
+*.db
+*.sqlite
+*.sqlite3
+data/app.db
+
+# ==========================================
+# Raw Data & Processed Artifacts (Local Only)
+# ==========================================
+# Never commit Institute copyrighted soft-copies to Git
+data/raw/*
+!data/raw/.gitkeep
+
+# Never commit bulk processed intermediate JSON files
+data/processed/*
+!data/processed/.gitkeep
+
+# ==========================================
+# Model Weights & Training Checkpoints
+# ==========================================
+checkpoints/
+models/
+*.pt
+*.bin
+*.safetensors
+*.onnx
+wandb/
+
+# ==========================================
+# Testing & Code Quality
+# ==========================================
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# ==========================================
+# IDE & Operating System Files
+# ==========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.DS_Store
+Thumbs.db

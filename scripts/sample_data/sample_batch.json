@@ -1,0 +1,53 @@
+{
+  "document": {
+    "source_filename": "sample_reader_grade3.pdf",
+    "doc_type": "textbook",
+    "title": "Awi Agawxi Grade 3 Reading Primer",
+    "total_characters": 312,
+    "total_raw_lines": 10,
+    "extraction_status": "success",
+    "error_log": null,
+    "created_at": "2026-10-26T19:00:00Z"
+  },
+  "sentences": [
+    {
+      "document_id": null,
+      "raw_text": "Awi  agawxi   qutɨrsɨ.",
+      "normalized_text": "Awi agawxi qutɨrsɨ.",
+      "language": "awn",
+      "char_count": 19,
+      "word_count": 3,
+      "is_duplicate": false,
+      "duplicate_of_id": null,
+      "orthography_standard": "latin_official",
+      "domain": "education"
+    },
+    {
+      "document_id": null,
+      "raw_text": "Dɨnxɨwa   kɨda agawxi.",
+      "normalized_text": "Dɨnxɨwa kɨda agawxi.",
+      "language": "awn",
+      "char_count": 21,
+      "word_count": 3,
+      "is_duplicate": false,
+      "duplicate_of_id": null,
+      "orthography_standard": "latin_official",
+      "domain": "agriculture"
+    },
+    {
+      "document_id": null,
+      "raw_text": "Anbaŋ  bɨsta antɨrsɨ.",
+      "normalized_text": "Anbaŋ bɨsta antɨrsɨ.",
+      "language": "awn",
+      "char_count": 20,
+      "word_count": 3,
+      "is_duplicate": false,
+      "duplicate_of_id": null,
+      "orthography_standard": "latin_official",
+      "domain": "general"
+    }
+  ],
+  "batch_id": "00000000-0000-0000-0000-000000000001",
+  "pipeline_version": "0.1.0",
+  "exported_at": "2026-10-26T19:01:00Z"
+}
