@@ -2,8 +2,13 @@
 Shared pytest configuration and test fixtures for Awingi NLP Platform.
 """
 
-import json
+import os
 from pathlib import Path
+
+# Direct all test database queries to isolated data/test.db to keep data/app.db completely clean
+os.environ["DATABASE_URL"] = "sqlite:///data/test.db"
+
+import json
 import pytest
 from src.common.schemas import IngestionBatch, ExtractedDocument, CleanedSentence, DocumentType, ExtractionStatus
 
@@ -25,6 +30,13 @@ def sample_batch_data(sample_batch_path: Path) -> dict:
     """Return parsed dictionary from sample_batch.json."""
     with open(sample_batch_path, "r", encoding="utf-8") as f:
         return json.load(f)
+
+
+@pytest.fixture(scope="session", autouse=True)
+def setup_test_db():
+    """Ensure database schema is created prior to test execution."""
+    from src.platform.database import init_db
+    init_db()
 
 
 @pytest.fixture

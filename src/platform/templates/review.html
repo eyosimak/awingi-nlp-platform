@@ -1,0 +1,292 @@
+{% extends "base.html" %}
+
+{% block title %}Corpus Review &amp; Quality Assurance — Awingi NLP{% endblock %}
+
+{% block content %}
+<div class="space-y-6" x-data="reviewApp()">
+
+    <!-- Header & Action Summary -->
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200 shadow-2xs">
+        <div>
+            <h1 class="text-xl font-bold text-slate-900">
+                Awingi Corpus Review &amp; Linguistic QA
+            </h1>
+            <p class="text-xs text-slate-500 mt-1">
+                Spot-check, approve, flag, or correct extracted sentences before downstream tokenizer training.
+            </p>
+        </div>
+        <div class="flex items-center gap-3">
+            <span class="text-xs px-3 py-1.5 rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 font-semibold">
+                {{ counts.approved }} Approved
+            </span>
+            <span class="text-xs px-3 py-1.5 rounded-lg bg-amber-50 text-amber-800 border border-amber-200 font-semibold">
+                {{ counts.pending }} Pending Review
+            </span>
+            <span class="text-xs px-3 py-1.5 rounded-lg bg-rose-50 text-rose-800 border border-rose-200 font-semibold">
+                {{ counts.flagged }} Flagged
+            </span>
+            <a href="/ingest" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-semibold transition-colors">
+                + Add Data
+            </a>
+        </div>
+    </div>
+
+    <!-- Filter Toolbar -->
+    <div class="bg-white p-4 rounded-xl border border-slate-200 shadow-2xs space-y-4">
+        <!-- Status Tabs -->
+        <div class="flex flex-wrap items-center gap-2 border-b border-slate-100 pb-3">
+            <span class="text-xs font-semibold text-slate-400 mr-2 uppercase tracking-wider">Status:</span>
+            {% for st in ['pending', 'approved', 'flagged', 'rejected', 'all'] %}
+                <a href="/review?status={{ st }}&domain={{ domain_filter }}{% if search_query %}&q={{ search_query }}{% endif %}"
+                   class="px-3 py-1.5 rounded-lg text-xs font-semibold transition-all {% if status_filter == st %}bg-brand-600 text-white shadow-xs{% else %}text-slate-600 hover:bg-slate-100 hover:text-slate-900{% endif %}">
+                    {{ st|capitalize }}
+                    <span class="ml-1 text-[10px] px-1.5 py-0.2 rounded-full {% if status_filter == st %}bg-white/20 text-white{% else %}bg-slate-200 text-slate-700{% endif %}">
+                        {{ counts[st] }}
+                    </span>
+                </a>
+            {% endfor %}
+        </div>
+
+        <!-- Filter Form (Domain & Search) -->
+        <form method="GET" action="/review" class="flex flex-col sm:flex-row items-center gap-3">
+            <input type="hidden" name="status" value="{{ status_filter }}">
+
+            <!-- Domain Select -->
+            <div class="w-full sm:w-48">
+                <select name="domain" onchange="this.form.submit()" class="w-full text-xs rounded-lg border-slate-300 focus:border-brand-500 focus:ring-brand-500 bg-slate-50 py-2 px-3">
+                    <option value="all" {% if domain_filter == 'all' %}selected{% endif %}>All Domains</option>
+                    {% for d in domains %}
+                        <option value="{{ d }}" {% if domain_filter == d %}selected{% endif %}>{{ d|capitalize }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <!-- Search Query -->
+            <div class="w-full flex-1 relative">
+                <input type="text" name="q" value="{{ search_query }}" placeholder="Search Awingi words (e.g. qutɨrsɨ, agawxi)..."
+                       class="w-full text-xs rounded-lg border-slate-300 focus:border-brand-500 focus:ring-brand-500 bg-slate-50 py-2 px-3">
+            </div>
+
+            <button type="submit" class="w-full sm:w-auto px-4 py-2 bg-slate-800 text-white text-xs font-semibold rounded-lg hover:bg-slate-900 transition-colors">
+                Filter
+            </button>
+            {% if search_query or domain_filter != 'all' or status_filter != 'pending' %}
+                <a href="/review" class="w-full sm:w-auto px-3 py-2 text-slate-500 text-xs font-medium hover:text-slate-700 text-center">
+                    Reset
+                </a>
+            {% endif %}
+        </form>
+    </div>
+
+    <!-- Sentence Cards List -->
+    <div class="space-y-3">
+        {% for sent in sentences %}
+            <div class="bg-white p-5 rounded-xl border {% if sent.status == 'approved' %}border-emerald-200 bg-emerald-50/20{% elif sent.status == 'flagged' %}border-rose-200 bg-rose-50/20{% elif sent.status == 'rejected' %}border-slate-300 bg-slate-100/50 opacity-75{% else %}border-slate-200 hover:border-slate-300{% endif %} shadow-2xs transition-all">
+                <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
+                    
+                    <!-- Left: Text & Linguistic Attributes -->
+                    <div class="flex-1 space-y-2">
+                        <!-- Badges -->
+                        <div class="flex flex-wrap items-center gap-2">
+                            <span class="text-[10px] uppercase font-mono font-bold px-2 py-0.5 rounded bg-slate-100 text-slate-700">
+                                {{ sent.domain }}
+                            </span>
+                            <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full {% if sent.status == 'approved' %}bg-emerald-100 text-emerald-800{% elif sent.status == 'flagged' %}bg-rose-100 text-rose-800{% elif sent.status == 'rejected' %}bg-slate-200 text-slate-700{% else %}bg-amber-100 text-amber-800{% endif %}">
+                                {{ sent.status|capitalize }}
+                            </span>
+                            <span class="text-[11px] text-slate-400">
+                                {{ sent.char_count }} chars &bull; {{ sent.word_count }} words
+                            </span>
+                            {% if sent.document %}
+                                <span class="text-[11px] text-slate-400 truncate max-w-xs" title="{{ sent.document.source_filename }}">
+                                    Source: {{ sent.document.source_filename }}
+                                </span>
+                            {% endif %}
+                        </div>
+
+                        <!-- Normalized Awingi Text (Primary) -->
+                        <div class="text-base sm:text-lg font-medium text-slate-900 awingi-text leading-relaxed">
+                            {{ sent.normalized_text }}
+                        </div>
+
+                        <!-- Raw Text & Note -->
+                        {% if sent.raw_text != sent.normalized_text %}
+                            <div class="text-xs text-slate-400 italic">
+                                <span class="font-medium text-slate-500">Raw Source:</span> {{ sent.raw_text }}
+                            </div>
+                        {% endif %}
+
+                        {% if sent.reviewer_note %}
+                            <div class="mt-2 text-xs bg-rose-100/80 text-rose-900 border border-rose-200 p-2 rounded-lg flex items-start gap-1.5">
+                                <span class="font-bold">Flag Note:</span>
+                                <span>{{ sent.reviewer_note }}</span>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <!-- Right: Review Action Buttons -->
+                    <div class="flex items-center gap-2 self-end lg:self-center shrink-0">
+                        <!-- Approve Button -->
+                        <form method="POST" action="/review/{{ sent.id }}/approve">
+                            <input type="hidden" name="return_url" value="{{ request.url }}">
+                            <button type="submit" title="Approve sentence"
+                                    class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-2xs transition-colors">
+                                Approve
+                            </button>
+                        </form>
+
+                        <!-- Edit Button (Opens Modal) -->
+                        <button type="button" @click="openEditModal('{{ sent.id }}', '{{ sent.normalized_text|replace("'", "\\'") }}')" title="Edit text"
+                                class="px-3 py-1.5 rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-700 text-xs font-semibold transition-colors">
+                            Edit
+                        </button>
+
+                        <!-- Flag Button (Opens Modal) -->
+                        <button type="button" @click="openFlagModal('{{ sent.id }}', '{{ (sent.reviewer_note or "")|replace("'", "\\'") }}')" title="Flag sentence"
+                                class="px-3 py-1.5 rounded-lg border border-rose-300 bg-white hover:bg-rose-50 text-rose-700 text-xs font-semibold transition-colors">
+                            Flag
+                        </button>
+
+                        <!-- Reject Button -->
+                        <form method="POST" action="/review/{{ sent.id }}/reject">
+                            <input type="hidden" name="return_url" value="{{ request.url }}">
+                            <button type="submit" title="Reject sentence"
+                                    class="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-500 hover:text-slate-700 text-xs font-medium transition-colors">
+                                Reject
+                            </button>
+                        </form>
+                    </div>
+
+                </div>
+            </div>
+        {% else %}
+            <div class="bg-white rounded-xl p-12 text-center border border-slate-200">
+                <h3 class="text-base font-bold text-slate-800">No sentences found</h3>
+                <p class="text-xs text-slate-500 mt-1">There are no sentences matching the current filter criteria.</p>
+                <div class="mt-4 flex justify-center gap-3">
+                    <a href="/review" class="text-xs font-semibold text-brand-600 hover:text-brand-800">Clear all filters</a>
+                    <span class="text-slate-300">|</span>
+                    <a href="/ingest" class="text-xs font-semibold text-brand-600 hover:text-brand-800">Add Real Data</a>
+                </div>
+            </div>
+        {% endfor %}
+    </div>
+
+    <!-- Pagination Controls -->
+    {% if total_pages > 1 %}
+        <div class="bg-white px-4 py-3 rounded-xl border border-slate-200 flex items-center justify-between shadow-2xs">
+            <div class="text-xs text-slate-500">
+                Page <span class="font-bold text-slate-800">{{ page }}</span> of <span class="font-bold text-slate-800">{{ total_pages }}</span>
+                ({{ total }} total sentences)
+            </div>
+            <div class="flex items-center gap-2">
+                {% if page > 1 %}
+                    <a href="/review?page={{ page - 1 }}&status={{ status_filter }}&domain={{ domain_filter }}{% if search_query %}&q={{ search_query }}{% endif %}"
+                       class="px-3 py-1.5 text-xs font-semibold rounded-lg border border-slate-300 hover:bg-slate-50 text-slate-700 transition-colors">
+                        Previous
+                    </a>
+                {% endif %}
+                {% if page < total_pages %}
+                    <a href="/review?page={{ page + 1 }}&status={{ status_filter }}&domain={{ domain_filter }}{% if search_query %}&q={{ search_query }}{% endif %}"
+                       class="px-3 py-1.5 text-xs font-semibold rounded-lg bg-brand-600 hover:bg-brand-700 text-white transition-colors">
+                        Next
+                    </a>
+                {% endif %}
+            </div>
+        </div>
+    {% endif %}
+
+    <!-- Alpine Modal: Flag Sentence -->
+    <div x-show="flagModalOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
+        <div @click.away="flagModalOpen = false" class="bg-white rounded-2xl max-w-md w-full p-6 shadow-xl border border-slate-200 space-y-4">
+            <h3 class="text-base font-bold text-slate-900">
+                Flag Sentence for Linguistic Issues
+            </h3>
+            <p class="text-xs text-slate-500">
+                Specify why this sentence should not be included directly in the language model corpus.
+            </p>
+            <form :action="'/review/' + activeSentenceId + '/flag'" method="POST" class="space-y-4">
+                <input type="hidden" name="return_url" value="{{ request.url }}">
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Reason / Linguistic Note:</label>
+                    <textarea name="note" x-model="flagNote" rows="3" required
+                              placeholder="e.g. OCR garbled words, contains Amharic text in Ge'ez, incomplete clause..."
+                              class="w-full text-xs rounded-lg border-slate-300 focus:border-rose-500 focus:ring-rose-500"></textarea>
+                </div>
+                <div class="flex justify-end gap-2">
+                    <button type="button" @click="flagModalOpen = false" class="px-4 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-4 py-2 rounded-lg text-xs font-semibold bg-rose-600 hover:bg-rose-700 text-white">
+                        Confirm Flag
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Alpine Modal: Edit Sentence -->
+    <div x-show="editModalOpen" x-cloak class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-xs">
+        <div @click.away="editModalOpen = false" class="bg-white rounded-2xl max-w-lg w-full p-6 shadow-xl border border-slate-200 space-y-4">
+            <h3 class="text-base font-bold text-slate-900">
+                Edit Awingi Normalized Sentence
+            </h3>
+            <p class="text-xs text-slate-500">
+                Correct spelling, barred-i, or glottal characters. Submitting will update the normalized text and approve the sentence.
+            </p>
+            <form :action="'/review/' + activeSentenceId + '/edit'" method="POST" class="space-y-4">
+                <input type="hidden" name="return_url" value="{{ request.url }}">
+                <div>
+                    <label class="block text-xs font-medium text-slate-700 mb-1">Normalized Text:</label>
+                    <textarea name="normalized_text" x-model="editText" rows="4" required
+                              class="w-full text-sm font-medium rounded-lg border-slate-300 focus:border-brand-500 focus:ring-brand-500 awingi-text"></textarea>
+                </div>
+
+                <!-- Special Character Insert Buttons -->
+                <div class="flex items-center gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200 text-xs">
+                    <span class="text-slate-500 font-medium">Quick Insert:</span>
+                    <button type="button" @click="editText += 'ɨ'" class="px-2 py-1 bg-white border border-slate-300 rounded font-mono font-bold hover:bg-brand-50 hover:border-brand-300">ɨ</button>
+                    <button type="button" @click="editText += 'Ɨ'" class="px-2 py-1 bg-white border border-slate-300 rounded font-mono font-bold hover:bg-brand-50 hover:border-brand-300">Ɨ</button>
+                    <button type="button" @click="editText += 'ŋ'" class="px-2 py-1 bg-white border border-slate-300 rounded font-mono font-bold hover:bg-brand-50 hover:border-brand-300">ŋ</button>
+                    <button type="button" @click="editText += 'Ŋ'" class="px-2 py-1 bg-white border border-slate-300 rounded font-mono font-bold hover:bg-brand-50 hover:border-brand-300">Ŋ</button>
+                    <button type="button" @click="editText += '\''" class="px-2 py-1 bg-white border border-slate-300 rounded font-mono font-bold hover:bg-brand-50 hover:border-brand-300">'</button>
+                </div>
+
+                <div class="flex justify-end gap-2">
+                    <button type="button" @click="editModalOpen = false" class="px-4 py-2 rounded-lg text-xs font-semibold text-slate-600 hover:bg-slate-100">
+                        Cancel
+                    </button>
+                    <button type="submit" class="px-4 py-2 rounded-lg text-xs font-semibold bg-brand-600 hover:bg-brand-700 text-white">
+                        Save &amp; Approve
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function reviewApp() {
+        return {
+            flagModalOpen: false,
+            editModalOpen: false,
+            activeSentenceId: '',
+            flagNote: '',
+            editText: '',
+            openFlagModal(id, currentNote) {
+                this.activeSentenceId = id;
+                this.flagNote = currentNote || '';
+                this.flagModalOpen = true;
+            },
+            openEditModal(id, currentText) {
+                this.activeSentenceId = id;
+                this.editText = currentText;
+                this.editModalOpen = true;
+            }
+        }
+    }
+</script>
+{% endblock %}

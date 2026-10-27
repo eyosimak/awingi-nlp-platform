@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+
+{% block title %}Export Dataset Splits — Awingi NLP{% endblock %}
+
+{% block content %}
+<div class="space-y-8" x-data="exportApp({{ approved_count }}, {{ total_count }})">
+
+    <!-- Header -->
+    <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-2xs">
+        <h1 class="text-xl font-bold text-slate-900">
+            Dataset Partitioning &amp; Export Engine
+        </h1>
+        <p class="text-xs text-slate-500 mt-1">
+            Export curated Awingi sentences into deterministic <code>train</code>, <code>val</code>, and <code>test</code> splits formatted as JSONL for tokenizer training and language modeling.
+        </p>
+    </div>
+
+    <!-- Main Grid -->
+    <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+        <!-- Left: Configuration Form -->
+        <div class="lg:col-span-2 bg-white p-6 rounded-xl border border-slate-200 shadow-2xs space-y-6">
+            <h2 class="text-base font-bold text-slate-900 border-b border-slate-100 pb-3">Export Configuration</h2>
+
+            <form action="/api/export" method="GET" class="space-y-5">
+                
+                <!-- Inclusion Filter -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Sentence Status:</label>
+                        <select name="status" x-model="statusFilter" class="w-full text-xs rounded-lg border-slate-300 focus:border-brand-500 focus:ring-brand-500 bg-slate-50 py-2 px-3">
+                            <option value="approved">Approved Only (Recommended: {{ approved_count }})</option>
+                            <option value="all">All Non-Duplicates ({{ total_count }})</option>
+                        </select>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Domain Filter:</label>
+                        <select name="domain" class="w-full text-xs rounded-lg border-slate-300 focus:border-brand-500 focus:ring-brand-500 bg-slate-50 py-2 px-3">
+                            <option value="all">All Domains</option>
+                            {% for d in domains %}
+                                <option value="{{ d }}">{{ d|capitalize }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+
+                <!-- Split Sliders -->
+                <div class="space-y-4 pt-2 border-t border-slate-100">
+                    <label class="block text-xs font-semibold text-slate-700">Dataset Split Ratios:</label>
+
+                    <!-- Train Ratio -->
+                    <div>
+                        <div class="flex justify-between text-xs text-slate-600 mb-1">
+                            <span class="font-medium text-emerald-800">Train Split: <span x-text="Math.round(trainRatio * 100) + '%'"></span></span>
+                            <span class="font-mono text-slate-500" x-text="estimatedTrain() + ' sentences'"></span>
+                        </div>
+                        <input type="range" name="train_ratio" min="0.5" max="0.9" step="0.05" x-model.number="trainRatio"
+                               class="w-full accent-emerald-600">
+                    </div>
+
+                    <!-- Validation Ratio -->
+                    <div>
+                        <div class="flex justify-between text-xs text-slate-600 mb-1">
+                            <span class="font-medium text-amber-800">Validation Split: <span x-text="Math.round(valRatio * 100) + '%'"></span></span>
+                            <span class="font-mono text-slate-500" x-text="estimatedVal() + ' sentences'"></span>
+                        </div>
+                        <input type="range" name="val_ratio" min="0.05" max="0.25" step="0.05" x-model.number="valRatio"
+                               class="w-full accent-amber-500">
+                    </div>
+
+                    <!-- Test Ratio (Derived) -->
+                    <div>
+                        <div class="flex justify-between text-xs text-slate-600 mb-1">
+                            <span class="font-medium text-indigo-800">Test Split: <span x-text="Math.round(testRatio() * 100) + '%'"></span></span>
+                            <span class="font-mono text-slate-500" x-text="estimatedTest() + ' sentences'"></span>
+                        </div>
+                        <div class="h-2 bg-indigo-100 rounded-full overflow-hidden">
+                            <div :style="'width: ' + (testRatio() * 100) + '%'" class="h-full bg-indigo-600"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Advanced Options -->
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Deterministic Seed:</label>
+                        <input type="number" name="seed" value="42" required
+                               class="w-full text-xs rounded-lg border-slate-300 focus:border-brand-500 focus:ring-brand-500 bg-slate-50 py-2 px-3">
+                        <span class="text-[11px] text-slate-400">Ensures 100% reproducible splits without data leakage</span>
+                    </div>
+
+                    <div>
+                        <label class="block text-xs font-semibold text-slate-700 mb-1">Output Format:</label>
+                        <select name="format" class="w-full text-xs rounded-lg border-slate-300 focus:border-brand-500 focus:ring-brand-500 bg-slate-50 py-2 px-3">
+                            <option value="jsonl">JSON Lines (.jsonl)</option>
+                        </select>
+                        <span class="text-[11px] text-slate-400">Standard Hugging Face / PyTorch format</span>
+                    </div>
+                </div>
+
+                <!-- Persist Option -->
+                <div class="flex items-center gap-2 pt-2">
+                    <input type="checkbox" id="persist_splits" name="persist_splits" value="true" checked
+                           class="rounded text-brand-600 focus:ring-brand-500">
+                    <label for="persist_splits" class="text-xs text-slate-700">
+                        Persist split assignments (<code>train</code>/<code>val</code>/<code>test</code>) into database for record keeping
+                    </label>
+                </div>
+
+                <!-- Submit Button -->
+                <div class="pt-4">
+                    <button type="submit" class="w-full py-3 px-4 rounded-xl bg-brand-600 hover:bg-brand-700 text-white font-semibold text-sm shadow-sm flex items-center justify-center gap-2 transition-all hover:shadow-md">
+                        Download Awingi Corpus JSONL
+                    </button>
+                </div>
+
+            </form>
+        </div>
+
+        <!-- Right: Partition Preview & Code Guide -->
+        <div class="space-y-6">
+            
+            <!-- Visual Partition Bar -->
+            <div class="bg-white p-6 rounded-xl border border-slate-200 shadow-2xs space-y-4">
+                <h3 class="text-sm font-bold text-slate-900">Partition Preview</h3>
+                <div class="h-4 w-full bg-slate-100 rounded-lg overflow-hidden flex shadow-inner">
+                    <div :style="'width: ' + (trainRatio * 100) + '%'" class="bg-emerald-500 transition-all" title="Train"></div>
+                    <div :style="'width: ' + (valRatio * 100) + '%'" class="bg-amber-400 transition-all" title="Val"></div>
+                    <div :style="'width: ' + (testRatio() * 100) + '%'" class="bg-indigo-500 transition-all" title="Test"></div>
+                </div>
+                <div class="text-xs space-y-1 text-slate-600">
+                    <div class="flex justify-between">
+                        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-emerald-500"></span> Train:</span>
+                        <span class="font-mono font-bold" x-text="estimatedTrain()"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-amber-400"></span> Validation:</span>
+                        <span class="font-mono font-bold" x-text="estimatedVal()"></span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-indigo-500"></span> Test:</span>
+                        <span class="font-mono font-bold" x-text="estimatedTest()"></span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Downstream Pipeline Integration Snippet -->
+            <div class="bg-slate-900 text-slate-100 p-5 rounded-xl border border-slate-800 shadow-sm space-y-3">
+                <div class="flex items-center justify-between">
+                    <h3 class="text-xs font-mono font-bold uppercase text-emerald-400">Phase 2 &bull; Tokenizer Training</h3>
+                    <span class="text-[10px] text-slate-500">SentencePiece</span>
+                </div>
+                <p class="text-xs text-slate-400 leading-relaxed">
+                    Feed the exported JSONL directly into SentencePiece BPE trainer:
+                </p>
+                <pre class="bg-slate-950 p-3 rounded-lg text-[11px] font-mono text-emerald-300 overflow-x-auto"><code># Train Awingi BPE (vocab=8000)
+import sentencepiece as spm
+
+spm.SentencePieceTrainer.train(
+    input='train.txt',
+    model_prefix='awingi_bpe_8k',
+    vocab_size=8000,
+    character_coverage=0.9995,
+    model_type='bpe',
+    user_defined_symbols=['ɨ', 'ŋ']
+)</code></pre>
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    function exportApp(approvedCount, totalCount) {
+        return {
+            approvedCount: approvedCount,
+            totalCount: totalCount,
+            statusFilter: 'approved',
+            trainRatio: 0.8,
+            valRatio: 0.1,
+            eligibleCount() {
+                return this.statusFilter === 'approved' ? this.approvedCount : this.totalCount;
+            },
+            testRatio() {
+                const tr = 1.0 - this.trainRatio - this.valRatio;
+                return Math.max(0, parseFloat(tr.toFixed(2)));
+            },
+            estimatedTrain() {
+                return Math.floor(this.eligibleCount() * this.trainRatio);
+            },
+            estimatedVal() {
+                return Math.floor(this.eligibleCount() * this.valRatio);
+            },
+            estimatedTest() {
+                return Math.max(0, this.eligibleCount() - this.estimatedTrain() - this.estimatedVal());
+            }
+        }
+    }
+</script>
+{% endblock %}
