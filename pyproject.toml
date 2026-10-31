@@ -40,6 +40,9 @@ ml = [
     "faiss-cpu>=1.8.0",
 ]
 
+[tool.vercel]
+entrypoint = "app:app"
+
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 python_files = ["test_*.py"]
