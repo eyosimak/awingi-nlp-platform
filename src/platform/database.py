@@ -3,53 +3,34 @@ Awingi NLP Platform — Database Engine and Session Management
 """
 
 import os
+import ssl
 from pathlib import Path
+from urllib.parse import urlparse, parse_qs, urlencode, urlunparse
 from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
-from src.common.config import settings
+
+# Import settings with graceful fallback
+try:
+    from src.common.config import settings
+    _default_db_url = settings.DATABASE_URL
+except Exception:
+    _default_db_url = "sqlite:////tmp/app.db"
 
 # Allow DATABASE_URL or POSTGRES_URL (Vercel Neon integration standard) override from environment
 DATABASE_URL = (
     os.getenv("DATABASE_URL")
     or os.getenv("POSTGRES_URL")
     or os.getenv("POSTGRES_PRISMA_URL")
-    or settings.DATABASE_URL
+    or _default_db_url
 )
 
 # Normalize legacy postgres:// URI scheme provided by some cloud hosts (Neon, Supabase, Heroku)
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
-# Clean up channel_binding for maximum driver compatibility on serverless environments
-DATABASE_URL = (
-    DATABASE_URL.replace("&channel_binding=require", "")
-    .replace("?channel_binding=require&", "?")
-    .replace("?channel_binding=require", "")
-)
-
-# Ensure SSL requirement for cloud-hosted Neon/Supabase endpoints
-if ("neon.tech" in DATABASE_URL or "supabase.co" in DATABASE_URL) and "sslmode" not in DATABASE_URL:
-    delimiter = "&" if "?" in DATABASE_URL else "?"
-    DATABASE_URL = f"{DATABASE_URL}{delimiter}sslmode=require"
-
 # If running in serverless Vercel environment with SQLite, route to /tmp
 if os.getenv("VERCEL") and "sqlite" in DATABASE_URL:
     DATABASE_URL = "sqlite:////tmp/app.db"
-
-# Check available PostgreSQL drivers
-has_psycopg2 = False
-try:
-    import psycopg2
-    has_psycopg2 = True
-except Exception:
-    has_psycopg2 = False
-
-has_pg8000 = False
-try:
-    import pg8000
-    has_pg8000 = True
-except Exception:
-    has_pg8000 = False
 
 engine_kwargs = {}
 
@@ -61,26 +42,29 @@ if "sqlite" in DATABASE_URL:
         except Exception:
             pass
     engine_kwargs["connect_args"] = {"check_same_thread": False}
-else:
+elif "postgresql" in DATABASE_URL:
     # Serverless-friendly settings for Postgres (Neon / Supabase)
     engine_kwargs["pool_pre_ping"] = True
     engine_kwargs["pool_recycle"] = 300
 
-    # Explicitly specify driver in URL so SQLAlchemy 2.0 does not try to import psycopg (v3)
-    if has_psycopg2:
-        if DATABASE_URL.startswith("postgresql://"):
-            DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
-    elif has_pg8000:
-        import ssl
-        # Strip query parameters for pg8000 and pass ssl_context via connect_args
-        if "?" in DATABASE_URL:
-            base_url, _ = DATABASE_URL.split("?", 1)
-        else:
-            base_url = DATABASE_URL
-        if base_url.startswith("postgresql://"):
-            DATABASE_URL = base_url.replace("postgresql://", "postgresql+pg8000://", 1)
-        else:
-            DATABASE_URL = base_url
+    # Parse the URL to clean up parameters incompatible with pg8000
+    parsed = urlparse(DATABASE_URL)
+    query_params = parse_qs(parsed.query, keep_blank_values=True)
+
+    # Remove parameters that pg8000 doesn't support
+    for param in ["channel_binding", "sslmode"]:
+        query_params.pop(param, None)
+
+    # Rebuild clean URL with pg8000 driver
+    clean_query = urlencode(query_params, doseq=True)
+    clean_parsed = parsed._replace(
+        scheme="postgresql+pg8000",
+        query=clean_query,
+    )
+    DATABASE_URL = urlunparse(clean_parsed)
+
+    # pg8000 needs ssl_context for Neon/cloud connections
+    if "neon.tech" in (parsed.hostname or "") or "supabase.co" in (parsed.hostname or ""):
         engine_kwargs["connect_args"] = {"ssl_context": ssl.create_default_context()}
 
 try:
@@ -112,9 +96,10 @@ def init_db():
     Ensures storage directories exist.
     """
     try:
-        settings.DATA_DIR.mkdir(parents=True, exist_ok=True)
-        settings.RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
-        settings.PROCESSED_DATA_DIR.mkdir(parents=True, exist_ok=True)
+        from src.common.config import settings as _s
+        _s.DATA_DIR.mkdir(parents=True, exist_ok=True)
+        _s.RAW_DATA_DIR.mkdir(parents=True, exist_ok=True)
+        _s.PROCESSED_DATA_DIR.mkdir(parents=True, exist_ok=True)
     except Exception:
         pass
     
