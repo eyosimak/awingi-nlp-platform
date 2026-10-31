@@ -6,6 +6,25 @@ import os
 import sys
 import traceback
 from pathlib import Path
+
+# Ensure standard library 'platform' is not shadowed by local package in serverless runtimes
+if "platform" in sys.modules and not hasattr(sys.modules["platform"], "system"):
+    del sys.modules["platform"]
+
+try:
+    import platform as _std_platform
+
+    if not hasattr(_std_platform, "system"):
+        _orig_path = sys.path[:]
+        sys.path = [p for p in sys.path if "_vendor" not in p]
+        if "platform" in sys.modules:
+            del sys.modules["platform"]
+        import platform as _std_platform
+
+        sys.modules["platform"] = _std_platform
+        sys.path = _orig_path
+except Exception:
+    pass
 # Self-healing bridge for Pydantic lazy imports in serverless runtimes
 try:
     import pydantic
