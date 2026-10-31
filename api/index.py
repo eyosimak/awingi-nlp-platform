@@ -1,14 +1,13 @@
 """
-Vercel Serverless Function Entrypoint
-Auto-detected by @vercel/python from the api/ directory.
+Vercel Serverless Function Handler
+Re-exports the root application ASGI instance.
 """
 
-import sys
 import os
+import sys
 
-# Ensure project root is on sys.path so 'src' package is importable
 _root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if _root not in sys.path:
     sys.path.insert(0, _root)
 
-from src.platform.app import app  # noqa: E402, F401
+from app import app  # noqa: F401

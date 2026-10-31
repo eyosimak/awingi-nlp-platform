@@ -6,6 +6,19 @@ import os
 import sys
 import traceback
 from pathlib import Path
+# Self-healing bridge for Pydantic lazy imports in serverless runtimes
+try:
+    import pydantic
+    if not hasattr(pydantic, "BaseModel"):
+        try:
+            import pydantic.main as _pm
+            pydantic.BaseModel = getattr(_pm, "BaseModel", None)
+            pydantic.create_model = getattr(_pm, "create_model", None)
+        except Exception:
+            pass
+except Exception:
+    pass
+
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 

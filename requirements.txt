@@ -6,6 +6,7 @@ python-multipart>=0.0.9
 
 # Data Validation & ORM
 pydantic>=2.6.0,<3.0.0
+pydantic-core>=2.16.0
 pydantic-settings>=2.2.0,<3.0.0
 sqlalchemy>=2.0.28,<3.0.0
 pg8000>=1.31.0
