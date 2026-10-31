@@ -113,6 +113,11 @@ h1 {{ color: #ef4444; }}
     async def health_check():
         return {"status": "healthy", "service": "awingi-nlp-platform"}
 
+    @_app.get("/api/index", include_in_schema=False)
+    async def api_index_redirect():
+        from fastapi.responses import RedirectResponse
+        return RedirectResponse(url="/", status_code=303)
+
     @_app.exception_handler(Exception)
     async def global_exception_handler(request: Request, exc: Exception):
         tb = traceback.format_exc()
