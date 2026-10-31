@@ -10,14 +10,13 @@ import random
 from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, Query, Request, status
 from fastapi.responses import HTMLResponse, StreamingResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 from src.platform.database import get_db
 from src.platform.models import Sentence
+from src.platform.templates import templates
 from src.platform.auth.dependencies import get_current_user_optional
 
 router = APIRouter(tags=["export"])
-templates = Jinja2Templates(directory="src/platform/templates")
 
 
 @router.get("/export", response_class=HTMLResponse)

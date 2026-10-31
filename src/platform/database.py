@@ -8,12 +8,22 @@ from sqlalchemy import create_engine
 from sqlalchemy.orm import declarative_base, sessionmaker
 from src.common.config import settings
 
-# Allow DATABASE_URL override from environment
-DATABASE_URL = os.getenv("DATABASE_URL", settings.DATABASE_URL)
+# Allow DATABASE_URL or POSTGRES_URL (Vercel Neon integration standard) override from environment
+DATABASE_URL = (
+    os.getenv("DATABASE_URL")
+    or os.getenv("POSTGRES_URL")
+    or os.getenv("POSTGRES_PRISMA_URL")
+    or settings.DATABASE_URL
+)
 
 # Normalize legacy postgres:// URI scheme provided by some cloud hosts (Neon, Supabase, Heroku)
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+# Ensure SSL requirement for cloud-hosted Neon/Supabase endpoints
+if ("neon.tech" in DATABASE_URL or "supabase.co" in DATABASE_URL) and "sslmode" not in DATABASE_URL:
+    delimiter = "&" if "?" in DATABASE_URL else "?"
+    DATABASE_URL = f"{DATABASE_URL}{delimiter}sslmode=require"
 
 # If running in serverless Vercel environment with SQLite, route to /tmp
 if os.getenv("VERCEL") and "sqlite" in DATABASE_URL:

@@ -8,15 +8,14 @@ from datetime import datetime
 from typing import Optional
 from fastapi import APIRouter, Depends, Form, Query, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse
-from fastapi.templating import Jinja2Templates
 from sqlalchemy import func
 from sqlalchemy.orm import Session
 from src.platform.database import get_db
 from src.platform.models import Document, Sentence
+from src.platform.templates import templates
 from src.platform.auth.dependencies import get_current_user_optional
 
 router = APIRouter(tags=["review"])
-templates = Jinja2Templates(directory="src/platform/templates")
 
 
 @router.get("/review", response_class=HTMLResponse)

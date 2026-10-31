@@ -23,15 +23,18 @@ async def lifespan(app: FastAPI):
     Application startup and shutdown lifecycle management.
     Initializes database schema and bootstraps default administrator.
     """
-    # 1. Initialize database tables
-    init_db()
-
-    # 2. Bootstrap default admin user
-    db = SessionLocal()
     try:
-        bootstrap_default_admin(db)
-    finally:
-        db.close()
+        # 1. Initialize database tables
+        init_db()
+
+        # 2. Bootstrap default admin user
+        db = SessionLocal()
+        try:
+            bootstrap_default_admin(db)
+        finally:
+            db.close()
+    except Exception as exc:
+        print(f"[Awingi Platform] Lifespan database initialization notice: {exc}")
 
     yield
 
@@ -45,13 +48,21 @@ def create_app() -> FastAPI:
         lifespan=lifespan,
     )
 
-    # Ensure static directories exist
-    STATIC_DIR.mkdir(parents=True, exist_ok=True)
-    (STATIC_DIR / "css").mkdir(parents=True, exist_ok=True)
-    (STATIC_DIR / "js").mkdir(parents=True, exist_ok=True)
+    # Ensure static directories exist if writable
+    try:
+        STATIC_DIR.mkdir(parents=True, exist_ok=True)
+        (STATIC_DIR / "css").mkdir(parents=True, exist_ok=True)
+        (STATIC_DIR / "js").mkdir(parents=True, exist_ok=True)
+    except Exception:
+        pass
 
-    # Mount static assets
-    app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+    # Mount static assets if directory exists
+    if STATIC_DIR.exists():
+        app.mount("/static", StaticFiles(directory=str(STATIC_DIR)), name="static")
+
+    @app.get("/healthz", tags=["health"])
+    async def health_check():
+        return {"status": "healthy", "service": "awingi-nlp-platform"}
 
     # Include route modules
     app.include_router(auth_router)
