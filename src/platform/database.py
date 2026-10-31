@@ -29,6 +29,20 @@ if ("neon.tech" in DATABASE_URL or "supabase.co" in DATABASE_URL) and "sslmode" 
 if os.getenv("VERCEL") and "sqlite" in DATABASE_URL:
     DATABASE_URL = "sqlite:////tmp/app.db"
 
+# Try importing psycopg2; if missing or broken in serverless Lambda, fallback to pure-python pg8000
+has_psycopg2 = False
+try:
+    import psycopg2
+    has_psycopg2 = True
+except Exception:
+    has_psycopg2 = False
+
+if not has_psycopg2 and ("postgresql://" in DATABASE_URL or "postgres://" in DATABASE_URL):
+    # Switch dialect to pg8000 which requires no C-libraries
+    if "postgresql+pg8000://" not in DATABASE_URL:
+        DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+pg8000://", 1)
+        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+pg8000://", 1)
+
 # Configure SQLite or PostgreSQL connection arguments & pooling
 engine_kwargs = {}
 if "sqlite" in DATABASE_URL:
@@ -44,7 +58,12 @@ else:
     engine_kwargs["pool_pre_ping"] = True
     engine_kwargs["pool_recycle"] = 300
 
-engine = create_engine(DATABASE_URL, **engine_kwargs)
+try:
+    engine = create_engine(DATABASE_URL, **engine_kwargs)
+except Exception as exc:
+    print(f"[Awingi Platform] Notice: Could not initialize engine for {DATABASE_URL}: {exc}. Falling back to SQLite in /tmp.")
+    DATABASE_URL = "sqlite:////tmp/app.db"
+    engine = create_engine(DATABASE_URL, connect_args={"check_same_thread": False})
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()

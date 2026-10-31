@@ -3,8 +3,11 @@ Awingi NLP Platform — Main Application Factory
 """
 
 from contextlib import asynccontextmanager
+import sys
+import traceback
 from pathlib import Path
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
 from src.platform.database import SessionLocal, init_db
 from src.platform.auth.dependencies import bootstrap_default_admin
@@ -63,6 +66,33 @@ def create_app() -> FastAPI:
     @app.get("/healthz", tags=["health"])
     async def health_check():
         return {"status": "healthy", "service": "awingi-nlp-platform"}
+
+    @app.exception_handler(Exception)
+    async def global_exception_handler(request: Request, exc: Exception):
+        tb = traceback.format_exc()
+        print(f"[Awingi Platform Request Exception]\n{tb}", file=sys.stderr)
+        return HTMLResponse(
+            content=f"""<!DOCTYPE html>
+<html>
+<head>
+    <title>Runtime Error — Awingi Platform</title>
+    <style>
+        body {{ font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; padding: 2rem; background: #0f172a; color: #f8fafc; margin: 0; }}
+        .card {{ background: #1e293b; border: 1px solid #ef4444; border-radius: 8px; padding: 1.5rem; max-width: 900px; margin: 2rem auto; box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5); }}
+        h1 {{ color: #ef4444; font-size: 1.5rem; margin-top: 0; }}
+        pre {{ background: #020617; color: #fca5a5; padding: 1.25rem; border-radius: 6px; overflow-x: auto; font-size: 0.875rem; line-height: 1.6; border: 1px solid #334155; }}
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Serverless Runtime Exception</h1>
+        <p>An uncaught error occurred while handling request {request.url.path}:</p>
+        <pre>{tb}</pre>
+    </div>
+</body>
+</html>""",
+            status_code=500,
+        )
 
     # Include route modules
     app.include_router(auth_router)
