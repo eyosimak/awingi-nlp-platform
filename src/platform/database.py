@@ -11,11 +11,16 @@ from src.common.config import settings
 # Allow DATABASE_URL override from environment
 DATABASE_URL = os.getenv("DATABASE_URL", settings.DATABASE_URL)
 
+# Normalize legacy postgres:// URI scheme provided by some cloud hosts (Neon, Supabase, Heroku)
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
 # If running in serverless Vercel environment with SQLite, route to /tmp
 if os.getenv("VERCEL") and "sqlite" in DATABASE_URL:
     DATABASE_URL = "sqlite:////tmp/app.db"
 
-# Configure SQLite or PostgreSQL connection arguments
+# Configure SQLite or PostgreSQL connection arguments & pooling
+engine_kwargs = {}
 if "sqlite" in DATABASE_URL:
     db_path = DATABASE_URL.replace("sqlite:///", "")
     if db_path and not db_path.startswith(":memory:"):
@@ -23,11 +28,13 @@ if "sqlite" in DATABASE_URL:
             Path(db_path).resolve().parent.mkdir(parents=True, exist_ok=True)
         except Exception:
             pass
-    connect_args = {"check_same_thread": False}
+    engine_kwargs["connect_args"] = {"check_same_thread": False}
 else:
-    connect_args = {}
+    # Serverless-friendly settings for Postgres (Neon / Supabase)
+    engine_kwargs["pool_pre_ping"] = True
+    engine_kwargs["pool_recycle"] = 300
 
-engine = create_engine(DATABASE_URL, connect_args=connect_args)
+engine = create_engine(DATABASE_URL, **engine_kwargs)
 
 SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 Base = declarative_base()
