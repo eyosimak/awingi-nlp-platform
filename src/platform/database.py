@@ -20,6 +20,13 @@ DATABASE_URL = (
 if DATABASE_URL.startswith("postgres://"):
     DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
 
+# Clean up channel_binding for maximum driver compatibility on serverless environments
+DATABASE_URL = (
+    DATABASE_URL.replace("&channel_binding=require", "")
+    .replace("?channel_binding=require&", "?")
+    .replace("?channel_binding=require", "")
+)
+
 # Ensure SSL requirement for cloud-hosted Neon/Supabase endpoints
 if ("neon.tech" in DATABASE_URL or "supabase.co" in DATABASE_URL) and "sslmode" not in DATABASE_URL:
     delimiter = "&" if "?" in DATABASE_URL else "?"
@@ -29,7 +36,7 @@ if ("neon.tech" in DATABASE_URL or "supabase.co" in DATABASE_URL) and "sslmode" 
 if os.getenv("VERCEL") and "sqlite" in DATABASE_URL:
     DATABASE_URL = "sqlite:////tmp/app.db"
 
-# Try importing psycopg2; if missing or broken in serverless Lambda, fallback to pure-python pg8000
+# Check available PostgreSQL drivers
 has_psycopg2 = False
 try:
     import psycopg2
@@ -37,14 +44,15 @@ try:
 except Exception:
     has_psycopg2 = False
 
-if not has_psycopg2 and ("postgresql://" in DATABASE_URL or "postgres://" in DATABASE_URL):
-    # Switch dialect to pg8000 which requires no C-libraries
-    if "postgresql+pg8000://" not in DATABASE_URL:
-        DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+pg8000://", 1)
-        DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql+pg8000://", 1)
+has_pg8000 = False
+try:
+    import pg8000
+    has_pg8000 = True
+except Exception:
+    has_pg8000 = False
 
-# Configure SQLite or PostgreSQL connection arguments & pooling
 engine_kwargs = {}
+
 if "sqlite" in DATABASE_URL:
     db_path = DATABASE_URL.replace("sqlite:///", "")
     if db_path and not db_path.startswith(":memory:"):
@@ -57,6 +65,23 @@ else:
     # Serverless-friendly settings for Postgres (Neon / Supabase)
     engine_kwargs["pool_pre_ping"] = True
     engine_kwargs["pool_recycle"] = 300
+
+    # Explicitly specify driver in URL so SQLAlchemy 2.0 does not try to import psycopg (v3)
+    if has_psycopg2:
+        if DATABASE_URL.startswith("postgresql://"):
+            DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+psycopg2://", 1)
+    elif has_pg8000:
+        import ssl
+        # Strip query parameters for pg8000 and pass ssl_context via connect_args
+        if "?" in DATABASE_URL:
+            base_url, _ = DATABASE_URL.split("?", 1)
+        else:
+            base_url = DATABASE_URL
+        if base_url.startswith("postgresql://"):
+            DATABASE_URL = base_url.replace("postgresql://", "postgresql+pg8000://", 1)
+        else:
+            DATABASE_URL = base_url
+        engine_kwargs["connect_args"] = {"ssl_context": ssl.create_default_context()}
 
 try:
     engine = create_engine(DATABASE_URL, **engine_kwargs)
@@ -97,3 +122,14 @@ def init_db():
     from src.platform import models  # noqa: F401
     
     Base.metadata.create_all(bind=engine)
+
+    # Ensure initial admin exists
+    try:
+        from src.platform.auth.dependencies import bootstrap_default_admin
+        db = SessionLocal()
+        try:
+            bootstrap_default_admin(db)
+        finally:
+            db.close()
+    except Exception:
+        pass

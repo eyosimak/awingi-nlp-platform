@@ -3,14 +3,14 @@ Awingi NLP Platform — Main Application Factory
 """
 
 from contextlib import asynccontextmanager
+import os
 import sys
 import traceback
 from pathlib import Path
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from src.platform.database import SessionLocal, init_db
-from src.platform.auth.dependencies import bootstrap_default_admin
+from src.platform.database import init_db
 from src.platform.auth.routes import router as auth_router
 from src.platform.routes.dashboard import router as dashboard_router
 from src.platform.routes.ingest import router as ingest_router
@@ -26,18 +26,13 @@ async def lifespan(app: FastAPI):
     Application startup and shutdown lifecycle management.
     Initializes database schema and bootstraps default administrator.
     """
-    try:
-        # 1. Initialize database tables
-        init_db()
-
-        # 2. Bootstrap default admin user
-        db = SessionLocal()
+    # In local development, eagerly initialize schema.
+    # In serverless environments, schema initialization is performed lazily on demand to avoid cold-start timeouts.
+    if not os.getenv("VERCEL"):
         try:
-            bootstrap_default_admin(db)
-        finally:
-            db.close()
-    except Exception as exc:
-        print(f"[Awingi Platform] Lifespan database initialization notice: {exc}")
+            init_db()
+        except Exception as exc:
+            print(f"[Awingi Platform] Lifespan database initialization notice: {exc}")
 
     yield
 
