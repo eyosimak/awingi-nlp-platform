@@ -5,7 +5,9 @@ Awingi (Awngi, ISO 639-3: awn) Latin and Ethiopic dual orthographies.
 """
 
 import argparse
+import json
 import os
+import re
 import sys
 import tempfile
 from pathlib import Path
@@ -27,19 +29,32 @@ def prepare_training_text(
     input_source: Union[str, Path, List[str]],
 ) -> str:
     """
-    Extracts, normalizes, and serializes training corpus lines into a temporary file
-    ready for SentencePiece training.
+    Extracts, normalizes, strips item number prefixes, and serializes training corpus lines
+    into a temporary file ready for SentencePiece training.
+    Supports plaintext files, JSONL export files, and Python lists.
     """
     lines = []
     if isinstance(input_source, (str, Path)) and os.path.exists(str(input_source)):
         with open(input_source, "r", encoding="utf-8") as f:
             for raw_line in f:
-                clean = normalize_text(raw_line)
+                line_str = raw_line.strip()
+                if not line_str:
+                    continue
+                if line_str.startswith("{") and line_str.endswith("}"):
+                    try:
+                        data = json.loads(line_str)
+                        line_str = data.get("text") or data.get("raw_text") or ""
+                    except Exception:
+                        pass
+                clean = normalize_text(line_str)
+                # Strip leading enumeration item numbers (e.g. '257,')
+                clean = re.sub(r"^\d+[,.\-]\s*", "", clean).strip()
                 if clean:
                     lines.append(clean)
     elif isinstance(input_source, list):
         for raw_line in input_source:
             clean = normalize_text(raw_line)
+            clean = re.sub(r"^\d+[,.\-]\s*", "", clean).strip()
             if clean:
                 lines.append(clean)
     else:

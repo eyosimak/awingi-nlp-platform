@@ -47,6 +47,7 @@ class TokenizerConfig:
     model_type: str = "bpe"  # "bpe" or "unigram"
     character_coverage: float = 0.9995
     byte_fallback: bool = True
+    hard_vocab_limit: bool = False
     split_by_whitespace: bool = True
     split_by_unicode_script: bool = True
     normalization_rule_name: str = "nmt_nfkc"
@@ -72,6 +73,7 @@ class TokenizerConfig:
             f"--model_type={self.model_type} "
             f"--character_coverage={self.character_coverage} "
             f"--byte_fallback={'true' if self.byte_fallback else 'false'} "
+            f"--hard_vocab_limit={'true' if self.hard_vocab_limit else 'false'} "
             f"--split_by_whitespace={'true' if self.split_by_whitespace else 'false'} "
             f"--split_by_unicode_script={'true' if self.split_by_unicode_script else 'false'} "
             f"--normalization_rule_name={self.normalization_rule_name} "

@@ -40,6 +40,8 @@ data/app.db
 # Never commit Institute copyrighted soft-copies to Git
 data/raw/*
 !data/raw/.gitkeep
+data/*.jsonl
+data/*.txt
 
 # Never commit bulk processed intermediate JSON files
 data/processed/*
