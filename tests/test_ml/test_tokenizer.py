@@ -86,8 +86,8 @@ def test_train_and_benchmark_sentencepiece():
     """Verify end-to-end training, encoding, decoding, and benchmarking with SentencePiece."""
     with tempfile.TemporaryDirectory() as tmpdir:
         # Replicate small corpus to satisfy minimum vocab requirement
-        repeated_corpus = SAMPLE_AWINGI_CORPUS * 20
-        config = TokenizerConfig(vocab_size=100, model_type="bpe")
+        repeated_corpus = SAMPLE_AWINGI_CORPUS * 30
+        config = TokenizerConfig(vocab_size=500, model_type="bpe")
 
         result = train_sentencepiece(
             corpus=repeated_corpus,
