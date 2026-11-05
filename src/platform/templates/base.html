@@ -66,6 +66,9 @@
                     <a href="/" class="px-3 py-2 rounded-md text-sm font-medium {% if request.url.path == '/' %}bg-brand-50 text-brand-700 font-semibold{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100{% endif %} transition-colors">
                         Dashboard
                     </a>
+                    <a href="/documents" class="px-3 py-2 rounded-md text-sm font-medium {% if '/documents' in request.url.path %}bg-brand-50 text-brand-700 font-semibold{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100{% endif %} transition-colors">
+                        Documents
+                    </a>
                     <a href="/ingest" class="px-3 py-2 rounded-md text-sm font-medium {% if '/ingest' in request.url.path %}bg-brand-50 text-brand-700 font-semibold{% else %}text-slate-600 hover:text-slate-900 hover:bg-slate-100{% endif %} transition-colors">
                         Add Data
                     </a>

@@ -165,3 +165,29 @@ async def reject_sentence(
         sentence.reviewed_at = datetime.utcnow()
         db.commit()
     return RedirectResponse(url=return_url, status_code=status.HTTP_303_SEE_OTHER)
+
+
+@router.post("/review/batch-approve")
+async def batch_approve(
+    sentence_ids: str = Form(default=""),
+    return_url: str = Form(default="/review"),
+    db: Session = Depends(get_db),
+    user=Depends(get_current_user_optional),
+):
+    """
+    Batch approve multiple sentences simultaneously.
+    sentence_ids is a comma-separated list of UUID strings.
+    """
+    if sentence_ids.strip():
+        ids = [i.strip() for i in sentence_ids.split(",") if i.strip()]
+        if ids:
+            db.query(Sentence).filter(Sentence.id.in_(ids)).update(
+                {
+                    Sentence.status: "approved",
+                    Sentence.reviewed_by: user.id if user else None,
+                    Sentence.reviewed_at: datetime.utcnow(),
+                },
+                synchronize_session=False,
+            )
+            db.commit()
+    return RedirectResponse(url=return_url, status_code=status.HTTP_303_SEE_OTHER)

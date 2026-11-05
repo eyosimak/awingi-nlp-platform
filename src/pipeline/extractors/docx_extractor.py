@@ -7,7 +7,11 @@ Extracts text from paragraphs and table cells.
 
 from pathlib import Path
 from typing import List
-import docx
+
+try:
+    import docx
+except ImportError:
+    docx = None
 
 from src.pipeline.extractors.base import BaseExtractor, ExtractionResult
 
@@ -23,6 +27,17 @@ class DOCXExtractor(BaseExtractor):
     def extract(self, filepath: str) -> ExtractionResult:
         path = Path(filepath)
         filename = path.name
+
+        if docx is None:
+            return ExtractionResult(
+                source_filename=filename,
+                raw_text="",
+                raw_lines=[],
+                total_characters=0,
+                total_raw_lines=0,
+                success=False,
+                error_message="python-docx library is not installed",
+            )
 
         try:
             doc = docx.Document(filepath)

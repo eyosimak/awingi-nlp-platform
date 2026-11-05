@@ -25,6 +25,16 @@
             <span class="text-xs px-3 py-1.5 rounded-lg bg-rose-50 text-rose-800 border border-rose-200 font-semibold">
                 {{ counts.flagged }} Flagged
             </span>
+            {% if sentences %}
+                <form method="POST" action="/review/batch-approve" onsubmit="return confirm('Approve all pending sentences on this page?');">
+                    <input type="hidden" name="return_url" value="{{ request.url }}">
+                    <input type="hidden" name="sentence_ids" value="{% for sent in sentences %}{% if sent.status == 'pending' %}{{ sent.id }},{% endif %}{% endfor %}">
+                    <button type="submit" class="text-xs px-3 py-1.5 rounded-lg bg-emerald-700 hover:bg-emerald-800 text-white font-semibold transition-colors flex items-center gap-1 shadow-xs">
+                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"></path></svg>
+                        Approve Page
+                    </button>
+                </form>
+            {% endif %}
             <a href="/ingest" class="text-xs px-3 py-1.5 rounded-lg bg-slate-800 hover:bg-slate-900 text-white font-semibold transition-colors">
                 + Add Data
             </a>
@@ -78,10 +88,24 @@
         </form>
     </div>
 
+    <!-- Review Acceleration Cheatsheet Bar -->
+    <div class="bg-gradient-to-r from-brand-50 to-slate-50 border border-brand-200/60 rounded-xl px-4 py-2.5 flex flex-wrap items-center justify-between text-xs text-slate-600 gap-2 shadow-2xs">
+        <div class="flex items-center gap-2 font-medium">
+            <span class="inline-flex items-center px-1.5 py-0.5 rounded bg-brand-600 text-white font-mono text-[10px] font-bold">HOTKEYS</span>
+            <span>Focus card with <kbd class="px-1.5 py-0.5 bg-white border border-slate-300 rounded font-mono font-bold text-slate-800">J</kbd>/<kbd class="px-1.5 py-0.5 bg-white border border-slate-300 rounded font-mono font-bold text-slate-800">K</kbd> &bull; Press <kbd class="px-1.5 py-0.5 bg-white border border-slate-300 rounded font-mono font-bold text-slate-800">A</kbd> to Approve &bull; <kbd class="px-1.5 py-0.5 bg-white border border-slate-300 rounded font-mono font-bold text-slate-800">F</kbd> to Flag &bull; <kbd class="px-1.5 py-0.5 bg-white border border-slate-300 rounded font-mono font-bold text-slate-800">R</kbd> to Reject</span>
+        </div>
+        <div class="text-[11px] text-slate-500 italic">
+            Click any sentence or use keys to navigate
+        </div>
+    </div>
+
     <!-- Sentence Cards List -->
     <div class="space-y-3">
         {% for sent in sentences %}
-            <div class="bg-white p-5 rounded-xl border {% if sent.status == 'approved' %}border-emerald-200 bg-emerald-50/20{% elif sent.status == 'flagged' %}border-rose-200 bg-rose-50/20{% elif sent.status == 'rejected' %}border-slate-300 bg-slate-100/50 opacity-75{% else %}border-slate-200 hover:border-slate-300{% endif %} shadow-2xs transition-all">
+            <div id="card-{{ sent.id }}"
+                 @click="selectedIndex = {{ loop.index0 }}"
+                 :class="selectedIndex === {{ loop.index0 }} ? 'ring-2 ring-brand-500 shadow-md border-brand-300' : ''"
+                 class="bg-white p-5 rounded-xl border {% if sent.status == 'approved' %}border-emerald-200 bg-emerald-50/20{% elif sent.status == 'flagged' %}border-rose-200 bg-rose-50/20{% elif sent.status == 'rejected' %}border-slate-300 bg-slate-100/50 opacity-75{% else %}border-slate-200 hover:border-slate-300{% endif %} shadow-2xs transition-all cursor-pointer">
                 <div class="flex flex-col lg:flex-row lg:items-start lg:justify-between gap-4">
                     
                     <!-- Left: Text & Linguistic Attributes -->
@@ -127,9 +151,9 @@
                     <!-- Right: Review Action Buttons -->
                     <div class="flex items-center gap-2 self-end lg:self-center shrink-0">
                         <!-- Approve Button -->
-                        <form method="POST" action="/review/{{ sent.id }}/approve">
+                        <form id="form-approve-{{ sent.id }}" method="POST" action="/review/{{ sent.id }}/approve">
                             <input type="hidden" name="return_url" value="{{ request.url }}">
-                            <button type="submit" title="Approve sentence"
+                            <button type="submit" title="Approve sentence [A]"
                                     class="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold shadow-2xs transition-colors">
                                 Approve
                             </button>
@@ -142,15 +166,15 @@
                         </button>
 
                         <!-- Flag Button (Opens Modal) -->
-                        <button type="button" @click="openFlagModal('{{ sent.id }}', '{{ (sent.reviewer_note or "")|replace("'", "\\'") }}')" title="Flag sentence"
-                                class="px-3 py-1.5 rounded-lg border border-rose-300 bg-white hover:bg-rose-50 text-rose-700 text-xs font-semibold transition-colors">
+                        <button type="button" @click="openFlagModal('{{ sent.id }}', '{{ (sent.reviewer_note or "")|replace("'", "\\'") }}')" title="Flag sentence [F]"
+                                class="btn-flag px-3 py-1.5 rounded-lg border border-rose-300 bg-white hover:bg-rose-50 text-rose-700 text-xs font-semibold transition-colors">
                             Flag
                         </button>
 
                         <!-- Reject Button -->
-                        <form method="POST" action="/review/{{ sent.id }}/reject">
+                        <form id="form-reject-{{ sent.id }}" method="POST" action="/review/{{ sent.id }}/reject">
                             <input type="hidden" name="return_url" value="{{ request.url }}">
-                            <button type="submit" title="Reject sentence"
+                            <button type="submit" title="Reject sentence [R]"
                                     class="px-2.5 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 text-slate-500 hover:text-slate-700 text-xs font-medium transition-colors">
                                 Reject
                             </button>
@@ -276,6 +300,64 @@
             activeSentenceId: '',
             flagNote: '',
             editText: '',
+            selectedIndex: 0,
+            sentenceIds: [{% for sent in sentences %}'{{ sent.id }}'{% if not loop.last %},{% endif %}{% endfor %}],
+            init() {
+                window.addEventListener('keydown', (e) => {
+                    if (this.flagModalOpen || this.editModalOpen) return;
+                    const tag = document.activeElement ? document.activeElement.tagName : '';
+                    if (['INPUT', 'TEXTAREA', 'SELECT'].includes(tag)) return;
+
+                    if (e.key === 'j' || e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        if (this.selectedIndex < this.sentenceIds.length - 1) {
+                            this.selectedIndex++;
+                            this.scrollToSelected();
+                        }
+                    } else if (e.key === 'k' || e.key === 'ArrowUp') {
+                        e.preventDefault();
+                        if (this.selectedIndex > 0) {
+                            this.selectedIndex--;
+                            this.scrollToSelected();
+                        }
+                    } else if (e.key === 'a' || e.key === 'A') {
+                        e.preventDefault();
+                        this.quickApprove();
+                    } else if (e.key === 'f' || e.key === 'F') {
+                        e.preventDefault();
+                        this.quickFlag();
+                    } else if (e.key === 'r' || e.key === 'R') {
+                        e.preventDefault();
+                        this.quickReject();
+                    }
+                });
+            },
+            scrollToSelected() {
+                const id = this.sentenceIds[this.selectedIndex];
+                const el = document.getElementById('card-' + id);
+                if (el) el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+            },
+            quickApprove() {
+                if (this.sentenceIds.length === 0) return;
+                const id = this.sentenceIds[this.selectedIndex];
+                const form = document.getElementById('form-approve-' + id);
+                if (form) form.submit();
+            },
+            quickFlag() {
+                if (this.sentenceIds.length === 0) return;
+                const id = this.sentenceIds[this.selectedIndex];
+                const card = document.getElementById('card-' + id);
+                if (card) {
+                    const btn = card.querySelector('.btn-flag');
+                    if (btn) btn.click();
+                }
+            },
+            quickReject() {
+                if (this.sentenceIds.length === 0) return;
+                const id = this.sentenceIds[this.selectedIndex];
+                const form = document.getElementById('form-reject-' + id);
+                if (form) form.submit();
+            },
             openFlagModal(id, currentNote) {
                 this.activeSentenceId = id;
                 this.flagNote = currentNote || '';

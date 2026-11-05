@@ -7,7 +7,14 @@ Filters out standalone page numbers and empty lines.
 
 from pathlib import Path
 from typing import List
-import pymupdf as fitz
+
+try:
+    import fitz
+except ImportError:
+    try:
+        import pymupdf as fitz
+    except ImportError:
+        fitz = None
 
 from src.pipeline.extractors.base import BaseExtractor, ExtractionResult
 
@@ -23,6 +30,17 @@ class PDFExtractor(BaseExtractor):
     def extract(self, filepath: str) -> ExtractionResult:
         path = Path(filepath)
         filename = path.name
+
+        if fitz is None:
+            return ExtractionResult(
+                source_filename=filename,
+                raw_text="",
+                raw_lines=[],
+                total_characters=0,
+                total_raw_lines=0,
+                success=False,
+                error_message="pymupdf (fitz) library is not installed",
+            )
 
         try:
             doc = fitz.open(filepath)

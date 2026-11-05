@@ -116,3 +116,35 @@ async def test_edit_sentence_and_approve(client: AsyncClient, sample_sentence: S
     assert updated.char_count == len(corrected)
     assert updated.word_count == 4
     assert updated.status == "approved"
+
+
+@pytest.mark.asyncio
+async def test_batch_approve_sentences(client: AsyncClient, sample_sentence: Sentence, db: Session):
+    """Verify that batch approval updates multiple sentences at once."""
+    sent2 = Sentence(
+        id=str(uuid.uuid4()),
+        document_id=sample_sentence.document_id,
+        raw_text="Second pending sentence.",
+        normalized_text="Second pending sentence.",
+        language="awn",
+        char_count=24,
+        word_count=3,
+        status="pending",
+    )
+    db.add(sent2)
+    db.commit()
+
+    id_list = f"{sample_sentence.id},{sent2.id}"
+    response = await client.post(
+        "/review/batch-approve",
+        data={"sentence_ids": id_list, "return_url": "/review"},
+        follow_redirects=False,
+    )
+    assert response.status_code == 303
+
+    db.expire_all()
+    updated1 = db.query(Sentence).filter(Sentence.id == sample_sentence.id).first()
+    updated2 = db.query(Sentence).filter(Sentence.id == sent2.id).first()
+    assert updated1.status == "approved"
+    assert updated2.status == "approved"
+

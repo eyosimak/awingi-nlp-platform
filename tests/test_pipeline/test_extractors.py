@@ -6,9 +6,17 @@ fallback, page-number filtering, table cell extraction, and error handling.
 """
 
 from pathlib import Path
-import docx
-import pymupdf as fitz
 import pytest
+
+try:
+    import docx
+except ImportError:
+    docx = None
+
+try:
+    import pymupdf as fitz
+except ImportError:
+    fitz = None
 
 from src.pipeline.extractors.docx_extractor import DOCXExtractor
 from src.pipeline.extractors.pdf_extractor import PDFExtractor
@@ -56,6 +64,8 @@ def test_txt_extractor_nonexistent_file():
 
 def test_pdf_extractor_page_number_filtering(tmp_path: Path):
     """Verify PDFExtractor extracts text and discards standalone page numbers (digits <= 4)."""
+    if fitz is None:
+        pytest.skip("pymupdf (fitz) is not installed")
     pdf_path = tmp_path / "test_doc.pdf"
     doc = fitz.open()
 
@@ -91,6 +101,8 @@ def test_pdf_extractor_page_number_filtering(tmp_path: Path):
 
 def test_pdf_extractor_invalid_file(tmp_path: Path):
     """Verify PDFExtractor gracefully handles corrupt/invalid PDF files."""
+    if fitz is None:
+        pytest.skip("pymupdf (fitz) is not installed")
     corrupt_pdf = tmp_path / "corrupt.pdf"
     corrupt_pdf.write_bytes(b"not a real pdf content")
 
@@ -102,6 +114,8 @@ def test_pdf_extractor_invalid_file(tmp_path: Path):
 
 def test_docx_extractor_paragraphs_and_tables(tmp_path: Path):
     """Verify DOCXExtractor extracts from paragraphs and tables without empty lines."""
+    if docx is None:
+        pytest.skip("python-docx is not installed")
     docx_path = tmp_path / "test_doc.docx"
     doc = docx.Document()
 
@@ -135,6 +149,8 @@ def test_docx_extractor_paragraphs_and_tables(tmp_path: Path):
 
 def test_docx_extractor_invalid_file(tmp_path: Path):
     """Verify DOCXExtractor gracefully handles corrupt/invalid docx files."""
+    if docx is None:
+        pytest.skip("python-docx is not installed")
     corrupt_docx = tmp_path / "corrupt.docx"
     corrupt_docx.write_bytes(b"not a real docx content")
 
