@@ -52,6 +52,7 @@ try:
     from src.platform.routes.review import router as review_router
     from src.platform.routes.export import router as export_router
     from src.platform.routes.documents import router as documents_router
+    from src.platform.routes.story import router as story_router
     from src.platform.templates import templates  # noqa: F401
 except Exception:
     _import_error = traceback.format_exc()
@@ -153,6 +154,7 @@ h1 {{ color: #ef4444; }}
     _app.include_router(ingest_router)
     _app.include_router(review_router)
     _app.include_router(export_router)
+    _app.include_router(story_router)
 
     return _app
 
