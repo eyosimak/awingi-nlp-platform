@@ -1,4 +1,4 @@
-/* Awingi NLP Platform — Custom Stylesheet */
+/* Awingi NLP Platform – Custom Stylesheet (Mobile & Desktop Optimized) */
 
 /* Ensure proper font rendering for both Ge'ez script (Ethiopic) and Latin orthographies */
 .awingi-text {
@@ -6,6 +6,21 @@
     font-feature-settings: 'cv01', 'cv02', 'cv03', 'cv04';
     letter-spacing: -0.01em;
     line-height: 1.7;
+}
+
+/* Hide scrollbars on horizontal quick-navigation strips while preserving touch scrolling */
+.no-scrollbar::-webkit-scrollbar {
+    display: none;
+}
+.no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+}
+
+/* Safe area support for modern mobile browsers with gesture bars */
+.mobile-safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 /* Custom scrollbars for data tables */
@@ -27,6 +42,37 @@
     background: #94a3b8;
 }
 
-[x-cloak] {
-    display: none !important;
+/* Non-intrusive mobile responsiveness safeguards across all child templates (< 768px) */
+@media (max-width: 767px) {
+    /* Prevent horizontal page overflow from decorative watermarks (e.g. dashboard hero 'awn' watermark) */
+    html, body {
+        overflow-x: hidden;
+    }
+
+    main .relative {
+        max-width: 100%;
+    }
+
+    /* Keep hero banners and gradient cards from spilling decorative children horizontally */
+    main .bg-gradient-to-r.relative {
+        overflow: hidden;
+    }
+
+    /* Scale down oversized editorial display headings (e.g. story.html text-6xl) to fit 320px-414px phones cleanly */
+    main .text-6xl {
+        font-size: 2.25rem !important;
+        line-height: 2.5rem !important;
+    }
+
+    /* Allow action button rows and masthead metadata bars to wrap gracefully on small screens */
+    main .flex.items-center.gap-6,
+    main .flex.items-center.gap-3,
+    main .flex.items-center.gap-2 {
+        flex-wrap: wrap;
+    }
+
+    /* Smooth momentum scrolling for data tables in dashboard.html and documents.html */
+    .overflow-x-auto {
+        -webkit-overflow-scrolling: touch;
+    }
 }
