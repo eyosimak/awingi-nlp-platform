@@ -44,9 +44,9 @@
 
 /* Non-intrusive mobile responsiveness safeguards across all child templates (< 768px) */
 @media (max-width: 767px) {
-    /* Prevent horizontal page overflow from decorative watermarks (e.g. dashboard hero 'awn' watermark) */
+    /* Use overflow-x: clip instead of hidden so sticky headers and full-page scroll in story.html work on mobile */
     html, body {
-        overflow-x: hidden;
+        overflow-x: clip;
     }
 
     main .relative {
@@ -58,21 +58,22 @@
         overflow: hidden;
     }
 
-    /* Scale down oversized editorial display headings (e.g. story.html text-6xl) to fit 320px-414px phones cleanly */
-    main .text-6xl {
+    /* Scale down oversized editorial display headings in story.html and child pages on narrow phones */
+    .text-6xl, .text-7xl, .text-8xl {
         font-size: 2.25rem !important;
         line-height: 2.5rem !important;
     }
 
-    /* Allow action button rows and masthead metadata bars to wrap gracefully on small screens */
-    main .flex.items-center.gap-6,
-    main .flex.items-center.gap-3,
-    main .flex.items-center.gap-2 {
+    /* Allow action button rows and story.html masthead metadata bars to wrap gracefully on small screens */
+    .flex.items-center.gap-6,
+    .flex.items-center.gap-3,
+    .flex.items-center.gap-2 {
         flex-wrap: wrap;
     }
 
-    /* Smooth momentum scrolling for data tables in dashboard.html and documents.html */
+    /* Smooth momentum scrolling for data tables and story.html interlinear glosses */
     .overflow-x-auto {
         -webkit-overflow-scrolling: touch;
+        max-width: 100vw;
     }
 }
